@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Nearby Glasses — detects Meta Ray-Ban, Snap Spectacles, and EssilorLuxottica smart glasses nearby using passive Bluetooth LE scanning. No data collected. Android only." />
+  <meta name="theme-color" content="#0A0A0A" />
+  <title>anti-spy · Nearby Glasses</title>
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="anti-spy · Nearby Glasses" />
+  <meta property="og:description" content="Passive BLE scanner that detects smart glasses nearby. No internet. No data collected. Android 8.0+." />
+  <meta property="og:type" content="website" />
+
+  <style>
+    /* ─── TOKENS ─────────────────────────────────────── */
+    :root {
+      --black:      #0A0A0A;
+      --off-black:  #111111;
+      --dark-gray:  #1A1A1A;
+      --mid-gray:   #4A4A4A;
+      --light-gray: #8A8A8A;
+      --off-white:  #F5F5F0;
+
+      --font-display: 'Impact', 'Arial Black', sans-serif;
+      --font-mono:    'Courier New', monospace;
+      --font-body:    'Arial', sans-serif;
+    }
+
+    /* ─── RESET ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--black);
+      color: var(--off-white);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* ─── SKIP LINK ───────────────────────────────────── */
+    .skip-link {
+      position: absolute;
+      top: -9999px;
+      left: 1rem;
+      background: var(--off-white);
+      color: var(--black);
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      z-index: 9999;
+      border: 2px solid var(--black);
+    }
+    .skip-link:focus-visible { top: 1rem; }
+
+    /* ─── FOCUS ──────────────────────────────────────── */
+    :focus-visible {
+      outline: 2px solid var(--off-white);
+      outline-offset: 3px;
+    }
+
+    /* ─── SVG FILTER DEFS (hidden) ────────────────────── */
+    .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+    /* ─── GRAIN OVERLAY ───────────────────────────────── */
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.08;
+      /* SVG feTurbulence data-URI grain */
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 300px 300px;
+      animation: grain-shift 600ms steps(1) infinite;
+    }
+
+    @keyframes grain-shift {
+      0%   { background-position:   0px   0px; }
+      10%  { background-position: -37px -53px; }
+      20%  { background-position:  71px  19px; }
+      30%  { background-position: -23px  84px; }
+      40%  { background-position:  59px -41px; }
+      50%  { background-position: -91px  67px; }
+      60%  { background-position:  13px -79px; }
+      70%  { background-position: -47px  31px; }
+      80%  { background-position:  83px -23px; }
+      90%  { background-position: -11px  97px; }
+      100% { background-position:   0px   0px; }
+    }
+
+    /* ─── SCREEN FLICKER ──────────────────────────────── */
+    body { animation: screen-flicker 4s steps(1) infinite; }
+    @keyframes screen-flicker {
+      0%, 95%, 100% { opacity: 1; }
+      96%           { opacity: 0.94; }
+      97%           { opacity: 1; }
+      98%           { opacity: 0.96; }
+      99%           { opacity: 1; }
+    }
+
+    /* ─── HERO ────────────────────────────────────────── */
+    .hero {
+      position: relative;
+      background: var(--black);
+      padding: clamp(4rem, 10vw, 8rem) clamp(1.5rem, 5vw, 4rem) 0;
+      overflow: hidden;
+    }
+
+    /* Halftone dot grid overlay */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle, var(--mid-gray) 1px, transparent 1px);
+      background-size: 20px 20px;
+      opacity: 0.18;
+      pointer-events: none;
+      aria-hidden: true;
+    }
+
+    /* Torn edge bottom */
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: -1%;
+      width: 102%;
+      height: clamp(40px, 6vw, 80px);
+      background: var(--off-black);
+      clip-path: polygon(
+        0% 100%, 2% 60%, 3.5% 80%, 5% 40%, 6.5% 65%, 8% 30%,
+        9.5% 55%, 11% 20%, 13% 50%, 14.5% 15%, 16% 45%, 17.5% 25%,
+        19% 55%, 21% 10%, 23% 40%, 25% 20%, 27% 50%, 29% 5%,
+        31% 35%, 33% 60%, 35% 15%, 37% 45%, 39% 25%, 41% 55%,
+        43% 30%, 45% 60%, 47% 20%, 49% 50%, 51% 10%, 53% 40%,
+        55% 65%, 57% 25%, 59% 55%, 61% 15%, 63% 45%, 65% 30%,
+        67% 60%, 69% 20%, 71% 50%, 73% 35%, 75% 65%, 77% 25%,
+        79% 55%, 81% 10%, 83% 40%, 85% 70%, 87% 30%, 89% 55%,
+        91% 20%, 93% 50%, 95% 35%, 97% 60%, 100% 40%, 100% 100%
+      );
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-bottom: clamp(5rem, 10vw, 9rem);
+    }
+
+    /* Logo */
+    .logo-wrap {
+      display: block;
+      overflow: visible;
+      margin-bottom: clamp(1.5rem, 4vw, 3rem);
+    }
+
+    .logo {
+      display: block;
+      font-family: var(--font-display);
+      font-size: clamp(5rem, 18vw, 14rem);
+      font-weight: 900;
+      line-height: 0.85;
+      letter-spacing: -0.04em;
+      color: var(--off-white);
+      text-transform: uppercase;
+      position: relative;
+      animation: logo-jitter 80ms steps(1) infinite;
+      user-select: none;
+    }
+
+    .logo::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      color: transparent;
+      -webkit-text-stroke: 1px var(--light-gray);
+      pointer-events: none;
+      aria-hidden: true;
+    }
+
+    .logo.hard-glitch {
+      animation: logo-jitter 80ms steps(1) infinite,
+                 logo-hard-glitch 80ms steps(1);
+    }
+
+    @keyframes logo-jitter {
+      0%   { transform: translate(0, 0) skewX(0deg); }
+      14%  { transform: translate(-1px, 1px) skewX(-0.3deg); }
+      28%  { transform: translate(1px, -1px) skewX(0.4deg); }
+      42%  { transform: translate(-2px, 0) skewX(0.2deg); }
+      57%  { transform: translate(1px, 1px) skewX(-0.5deg); }
+      71%  { transform: translate(0, -2px) skewX(0.3deg); }
+      85%  { transform: translate(2px, 0) skewX(-0.2deg); }
+      100% { transform: translate(0, 0) skewX(0deg); }
+    }
+
+    @keyframes logo-hard-glitch {
+      0%  { filter: invert(1); transform: scaleX(1.02) translate(3px, 0); }
+      25% { filter: invert(0); transform: scaleX(0.98) translate(-2px, 1px); }
+      50% { filter: invert(1); transform: scaleX(1.01) translate(0, -1px); }
+      75% { filter: invert(0); transform: scaleX(1) translate(1px, 0); }
+      100%{ filter: none;      transform: none; }
+    }
+
+    .hero-subtitle {
+      font-family: var(--font-mono);
+      font-size: clamp(0.8rem, 1.8vw, 1.1rem);
+      color: var(--light-gray);
+      max-width: 55ch;
+      margin-bottom: 1rem;
+      line-height: 1.6;
+      letter-spacing: 0.02em;
+    }
+
+    .hero-tagline {
+      font-family: var(--font-mono);
+      font-size: clamp(0.7rem, 1.4vw, 0.875rem);
+      color: var(--mid-gray);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: clamp(2rem, 5vw, 3.5rem);
+    }
+
+    .hero-tagline span { margin: 0 0.4em; color: var(--dark-gray); }
+
+    /* CTA button */
+    .btn-cta {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: clamp(0.875rem, 1.5vw, 1.1rem);
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      color: var(--black);
+      background: var(--off-white);
+      border: 2px solid var(--off-white);
+      padding: 0.75em 2em;
+      position: relative;
+      overflow: hidden;
+      transition: none;
+      /* never clip the <a> itself — keeps the hit area intact */
+    }
+
+    /* sliding fill lives entirely in ::before so the anchor is never clipped */
+    .btn-cta::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--black);
+      transform: translateX(-101%);
+      z-index: 0;
+      transition: none;
+    }
+
+    /* text sits above the fill */
+    .btn-cta .btn-label {
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-cta:hover {
+      color: var(--off-white);
+    }
+
+    .btn-cta:hover::before {
+      animation: btn-glitch-fill 280ms steps(1) forwards;
+    }
+
+    @keyframes btn-glitch-fill {
+      0%   { transform: translateX(-101%); clip-path: inset(0 0 0 0); }
+      20%  { transform: translateX(-60%);  clip-path: inset(30% 0 35% 0); }
+      40%  { transform: translateX(-80%);  clip-path: inset(0 0 0 0); }
+      60%  { transform: translateX(-20%);  clip-path: inset(50% 0 10% 0); }
+      80%  { transform: translateX(-10%);  clip-path: inset(0 0 0 0); }
+      100% { transform: translateX(0);     clip-path: inset(0 0 0 0); }
+    }
+
+    /* ─── TICKER ──────────────────────────────────────── */
+    .ticker-wrap {
+      background: var(--off-white);
+      color: var(--black);
+      overflow: hidden;
+      white-space: nowrap;
+      padding: 0.6rem 0;
+      border-top: 2px solid var(--black);
+      border-bottom: 2px solid var(--black);
+      position: relative;
+      z-index: 2;
+    }
+
+    .ticker-track {
+      display: inline-block;
+      animation: ticker-scroll 30s linear infinite;
+      will-change: transform;
+    }
+
+    .ticker-wrap:hover .ticker-track {
+      animation-play-state: paused;
+    }
+
+    .ticker-item {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: clamp(0.75rem, 1.5vw, 0.95rem);
+      font-weight: bold;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--black);
+      padding: 0 2rem;
+    }
+
+    .ticker-item::after {
+      content: '·';
+      margin-left: 2rem;
+      color: var(--mid-gray);
+    }
+
+    @keyframes ticker-scroll {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-50%); }
+    }
+
+    /* ─── MAIN CONTENT ────────────────────────────────── */
+    main {
+      background: var(--off-black);
+      position: relative;
+      z-index: 1;
+    }
+
+    .section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: clamp(3rem, 8vw, 6rem) clamp(1.5rem, 5vw, 4rem);
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 5vw, 3.5rem);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--off-white);
+      margin-bottom: clamp(2rem, 5vw, 4rem);
+      position: relative;
+      display: inline-block;
+    }
+
+    .section-title::after {
+      content: '';
+      display: block;
+      height: 3px;
+      background: var(--off-white);
+      margin-top: 0.4rem;
+      filter: url(#rough-edge);
+    }
+
+    /* ─── CARDS ───────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      gap: clamp(1.5rem, 3vw, 2.5rem);
+    }
+
+    .card {
+      border: 2px solid var(--off-white);
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+      background: var(--dark-gray);
+      position: relative;
+      filter: url(#rough-edge);
+      transition: none;
+    }
+
+    .card:hover {
+      animation: card-lift 200ms steps(1) forwards;
+    }
+
+    @keyframes card-lift {
+      0%  { transform: translate(0, 0) rotate(var(--card-rotation, 0deg)); }
+      50% { transform: translate(-1px, -3px) rotate(calc(var(--card-rotation, 0deg) - 0.5deg)); }
+      100%{ transform: translate(0, -4px) rotate(var(--card-rotation, 0deg)); }
+    }
+
+    .card-img {
+      display: block;
+      width: 100%;
+      max-height: 160px;
+      object-fit: contain;
+      filter: grayscale(1) contrast(1.1);
+      margin-bottom: 1.25rem;
+    }
+
+    .card-index {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--mid-gray);
+      letter-spacing: 0.15em;
+      margin-bottom: 1rem;
+    }
+
+    .card-device {
+      font-family: var(--font-display);
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--off-white);
+      margin-bottom: 0.4rem;
+      line-height: 1.1;
+    }
+
+    .card-manufacturer {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--light-gray);
+      letter-spacing: 0.05em;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-ble-label {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--mid-gray);
+      margin-bottom: 0.5rem;
+    }
+
+    .card-ble-ids {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-ble-ids code {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      font-weight: bold;
+      background: var(--off-black);
+      color: var(--off-white);
+      padding: 0.2em 0.5em;
+      border: 1px solid var(--mid-gray);
+      letter-spacing: 0.05em;
+    }
+
+    .card-note {
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      color: var(--light-gray);
+      line-height: 1.55;
+      border-top: 1px solid var(--dark-gray);
+      padding-top: 1rem;
+    }
+
+    /* ─── FOOTER ──────────────────────────────────────── */
+    .footer-section {
+      background: var(--black);
+      border-top: 2px solid var(--mid-gray);
+    }
+
+    .limitations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+      gap: clamp(1rem, 2.5vw, 2rem);
+      margin-bottom: clamp(3rem, 6vw, 5rem);
+    }
+
+    .limitation {
+      padding: 1.25rem 1.5rem;
+      border: 1px solid var(--dark-gray);
+      background: var(--off-black);
+    }
+
+    .limitation--critical {
+      background: var(--off-white);
+      color: var(--black);
+      border-color: var(--black);
+    }
+
+    .limitation-title {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: bold;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--off-white);
+      margin-bottom: 0.5rem;
+    }
+
+    .limitation--critical .limitation-title {
+      color: var(--black);
+    }
+
+    .limitation-body {
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      color: var(--light-gray);
+      line-height: 1.55;
+    }
+
+    .limitation--critical .limitation-body {
+      color: var(--off-black);
+      font-weight: bold;
+    }
+
+    /* Sub-footer */
+    .sub-footer {
+      border-top: 1px solid var(--dark-gray);
+      padding: 2rem 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 2rem;
+      align-items: center;
+    }
+
+    .sub-footer-item {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--mid-gray);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sub-footer a {
+      color: var(--light-gray);
+      text-decoration: none;
+      border-bottom: 1px solid var(--dark-gray);
+      transition: none;
+    }
+
+    .sub-footer a:hover {
+      color: var(--off-white);
+      border-bottom-color: var(--off-white);
+    }
+
+    .sub-footer-sep {
+      color: var(--dark-gray);
+      margin: 0 0.3rem;
+    }
+
+    /* ─── REDUCED MOTION ──────────────────────────────── */
+    @media (prefers-reduced-motion: reduce) {
+      .logo,
+      .logo.hard-glitch,
+      .grain,
+      body,
+      .ticker-track,
+      .card:hover,
+      .btn-cta:hover::before { animation: none !important; }
+
+      /* instant invert instead of animated fill */
+      .btn-cta:hover { color: var(--off-white); }
+      .btn-cta:hover::before { transform: translateX(0); }
+    }
+
+    /* ─── PRINT ───────────────────────────────────────── */
+    @media print {
+      .grain, .ticker-wrap, .hero::before { display: none; }
+      body { background: white; color: black; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Skip link -->
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <!-- Hidden SVG filter definitions -->
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <filter id="rough-edge" x="-5%" y="-5%" width="110%" height="110%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="4"
+                      seed="2" result="noise" />
+        <feDisplacementMap in="SourceGraphic" in2="noise"
+                           scale="3" xChannelSelector="R" yChannelSelector="G" />
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Film grain overlay -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ─── HERO ─────────────────────────────────────────── -->
+  <header class="hero" role="banner">
+    <div class="hero-inner">
+
+      <span class="logo-wrap" aria-hidden="true">
+        <span class="logo" id="logo" data-text="anti-spy">anti-spy</span>
+      </span>
+
+      <h1 class="sr-only">anti-spy · Nearby Glasses</h1>
+
+      <p class="hero-subtitle">
+        Detects smart glasses nearby using BLE scanning.<br />
+        Alerts you when surveillance devices are in range.
+      </p>
+
+      <p class="hero-tagline">
+        Passive
+        <span>·</span>
+        No data collected
+        <span>·</span>
+        No internet
+        <span>·</span>
+        Android only
+      </p>
+
+      <a class="btn-cta"
+         href="https://github.com/yjeanrenaud/yj_nearbyglasses"
+         target="_blank"
+         rel="noopener noreferrer"
+         aria-label="View source code on GitHub">
+        <span class="btn-label">[ Source Code ]</span>
+      </a>
+
+    </div>
+  </header>
+
+  <!-- ─── TICKER ────────────────────────────────────────── -->
+  <div class="ticker-wrap" role="marquee" aria-live="off" aria-label="Feature highlights">
+    <div class="ticker-track" aria-hidden="true">
+      <span class="ticker-item">BLE Scanner</span>
+      <span class="ticker-item">Passive Detection</span>
+      <span class="ticker-item">No Data Collection</span>
+      <span class="ticker-item">Open Source</span>
+      <span class="ticker-item">Android 8.0+</span>
+      <span class="ticker-item">AGPL-3.0</span>
+      <span class="ticker-item">Company ID Detection</span>
+      <span class="ticker-item">BLE Scanner</span>
+      <span class="ticker-item">Passive Detection</span>
+      <span class="ticker-item">No Data Collection</span>
+      <span class="ticker-item">Open Source</span>
+      <span class="ticker-item">Android 8.0+</span>
+      <span class="ticker-item">AGPL-3.0</span>
+      <span class="ticker-item">Company ID Detection</span>
+    </div>
+  </div>
+
+  <!-- ─── MAIN ──────────────────────────────────────────── -->
+  <main id="main-content">
+
+    <!-- Cards section -->
+    <section class="section" aria-labelledby="detect-heading">
+      <h2 class="section-title" id="detect-heading">What We Detect</h2>
+
+      <div class="cards-grid">
+
+        <article class="card" aria-labelledby="card-1-name">
+          <p class="card-index" aria-hidden="true">01 ·</p>
+          <img class="card-img" src="rayban.png" alt="Meta Ray-Ban smart glasses" />
+          <h3 class="card-device" id="card-1-name">Meta Ray-Ban</h3>
+          <p class="card-manufacturer">Meta Platforms, Inc.</p>
+          <p class="card-ble-label">BLE Company IDs</p>
+          <div class="card-ble-ids">
+            <code aria-label="Company ID 0x01AB">0x01AB</code>
+            <code aria-label="Company ID 0x058E">0x058E</code>
+          </div>
+          <p class="card-note">
+            Meta's smart glasses broadcast manufacturer-specific BLE advertisements.
+            VR headsets from the same company may trigger false positives.
+          </p>
+        </article>
+
+        <article class="card" aria-labelledby="card-2-name">
+          <p class="card-index" aria-hidden="true">02 ·</p>
+          <img class="card-img" src="snap.png" alt="Snap Spectacles smart glasses" />
+          <h3 class="card-device" id="card-2-name">Snap Spectacles</h3>
+          <p class="card-manufacturer">Snap, Inc.</p>
+          <p class="card-ble-label">BLE Company IDs</p>
+          <div class="card-ble-ids">
+            <code aria-label="Company ID 0x03C2">0x03C2</code>
+          </div>
+          <p class="card-note">
+            Snap's camera glasses advertise a distinct company identifier.
+            Detection relies on the BLE advertising payload being broadcast.
+          </p>
+        </article>
+
+      </div>
+    </section>
+
+    <!-- Footer section -->
+    <footer class="footer-section" role="contentinfo">
+      <div class="section">
+
+        <h2 class="section-title" id="limitations-heading">Known Limitations</h2>
+
+        <div class="limitations-grid" aria-labelledby="limitations-heading">
+
+          <div class="limitation">
+            <p class="limitation-title">False Positives</p>
+            <p class="limitation-body">
+              VR headsets (Oculus, Meta Quest) share company IDs with Ray-Ban glasses
+              and will trigger false alerts. Proceed with extreme caution.
+            </p>
+          </div>
+
+          <div class="limitation">
+            <p class="limitation-title">False Negatives</p>
+            <p class="limitation-body">
+              BLE signals are blocked by walls, bodies, and physical obstacles.
+              Glasses may be present without detection.
+            </p>
+          </div>
+
+          <div class="limitation">
+            <p class="limitation-title">Distance Is Rough</p>
+            <p class="limitation-body">
+              Range estimation uses RSSI signal strength only — not precise triangulation.
+              Distance figures are approximations at best.
+            </p>
+          </div>
+
+          <div class="limitation">
+            <p class="limitation-title">Randomised MACs</p>
+            <p class="limitation-body">
+              Device MAC addresses rotate periodically. Detection works via
+              BLE company ID only — not hardware address tracking.
+            </p>
+          </div>
+
+          <div class="limitation">
+            <p class="limitation-title">Android Only</p>
+            <p class="limitation-body">
+              Requires Android 8.0 (API level 26) or higher.
+              iOS is not supported. No iOS port is planned.
+            </p>
+          </div>
+
+          <div class="limitation limitation--critical">
+            <p class="limitation-title">⚠ Do Not Harass</p>
+            <p class="limitation-body">
+              A detected device might be regular glasses. Harassing someone
+              is a criminal offence — potentially more serious than using a
+              covert device. Think before you act.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- Sub-footer -->
+        <div class="sub-footer">
+          <span class="sub-footer-item">
+            License: <a href="https://github.com/yjeanrenaud/yj_nearbyglasses/blob/main/LICENSE"
+               target="_blank" rel="noopener noreferrer">AGPL-3.0</a>
+          </span>
+          <span class="sub-footer-sep" aria-hidden="true">·</span>
+          <span class="sub-footer-item">
+            <a href="https://github.com/yjeanrenaud/yj_nearbyglasses/blob/main/PRIVACY.md"
+               target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+          </span>
+          <span class="sub-footer-sep" aria-hidden="true">·</span>
+          <span class="sub-footer-item">
+            <a href="https://github.com/yjeanrenaud/yj_nearbyglasses"
+               target="_blank" rel="noopener noreferrer">GitHub</a>
+          </span>
+          <span class="sub-footer-sep" aria-hidden="true">·</span>
+          <span class="sub-footer-item">
+            <a href="https://play.google.com/store/apps/details?id=ch.pocketpc.nearbyglasses"
+               target="_blank" rel="noopener noreferrer">Google Play</a>
+          </span>
+        </div>
+
+      </div>
+    </footer>
+
+  </main>
+
+  <!-- Screen reader only utility -->
+  <style>
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* 1 — Randomise card rotation */
+      document.querySelectorAll('.card').forEach(function (card) {
+        var deg = (Math.random() * 2 - 1).toFixed(3);
+        card.style.setProperty('--card-rotation', deg + 'deg');
+        card.style.transform = 'rotate(' + deg + 'deg)';
+      });
+
+      /* 2 — Periodic logo hard-glitch */
+      var logo = document.getElementById('logo');
+      if (logo && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        setInterval(function () {
+          if (Math.random() < 0.15) {
+            logo.classList.add('hard-glitch');
+            setTimeout(function () {
+              logo.classList.remove('hard-glitch');
+            }, 80);
+          }
+        }, 2500);
+      }
+
+      /* 3 — Stagger grain overlay (second grain layer with offset) */
+      var grain = document.querySelector('.grain');
+      if (grain && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        grain.style.animationDelay = '-' + (Math.random() * 600).toFixed(0) + 'ms';
+      }
+    })();
+  </script>
+
+</body>
+</html>
