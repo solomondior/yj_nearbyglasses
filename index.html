@@ -286,6 +286,32 @@
       100% { transform: translateX(0);     clip-path: inset(0 0 0 0); }
     }
 
+    .hero-ctas {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .badge-play img {
+      display: block;
+      height: 48px;
+      width: auto;
+      filter: grayscale(1) contrast(1.1);
+      opacity: 0.85;
+      transition: none;
+    }
+
+    .badge-play:hover img {
+      opacity: 1;
+      filter: grayscale(1) contrast(1.3);
+    }
+
+    .badge-play:focus-visible {
+      outline: 2px solid var(--off-white);
+      outline-offset: 3px;
+    }
+
     /* ─── TICKER ──────────────────────────────────────── */
     .ticker-wrap {
       background: var(--off-white);
@@ -614,13 +640,25 @@
         Android only
       </p>
 
-      <a class="btn-cta"
-         href="https://github.com/yjeanrenaud/yj_nearbyglasses"
-         target="_blank"
-         rel="noopener noreferrer"
-         aria-label="View source code on GitHub">
-        <span class="btn-label">[ Source Code ]</span>
-      </a>
+      <div class="hero-ctas">
+        <a class="btn-cta"
+           href="https://github.com/yjeanrenaud/yj_nearbyglasses"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="View source code on GitHub">
+          <span class="btn-label">[ Source Code ]</span>
+        </a>
+
+        <a class="badge-play"
+           href="https://play.google.com/store/apps/details?id=ch.pocketpc.nearbyglasses"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="Get Nearby Glasses on Google Play">
+          <img src="https://github.com/user-attachments/assets/0feb46d1-969e-4f83-8fc7-c18d1bbed8ad"
+               alt="Get it on Google Play"
+               width="160" height="48" />
+        </a>
+      </div>
 
     </div>
   </header>
